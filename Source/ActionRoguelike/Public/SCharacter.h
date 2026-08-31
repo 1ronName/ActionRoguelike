@@ -19,11 +19,18 @@ class ACTIONROGUELIKE_API ASCharacter : public ACharacter
 protected:
 
 	UPROPERTY(EditAnywhere, Category = "Attack")
-	TSubclassOf<AActor> ProjectileClass;
+	TSubclassOf<AActor> MagicProjectileClass;
+
+	UPROPERTY(EditAnywhere, Category = "Attack")
+	TSubclassOf<AActor> BlackHoleProjectileClass;
+
+	UPROPERTY(EditAnywhere, Category = "Attack")
+	TSubclassOf<AActor> TeleportProjectileClass;
 
 	UPROPERTY(EditAnywhere, Category = "Attack")
 	UAnimMontage* AttackAnim;
 
+	// 三种弹幕发射共用一个计时器
 	FTimerHandle TimerHandle_PrimaryAttack;
 
 public:
@@ -47,10 +54,23 @@ protected:
 
 	void MoveRight(float Value);
 
+	// Tool Function
+	FVector GetImpactLocation();
+
+	//发射 projectile
 	void PrimaryAttack();
 	
 	void PrimaryAttack_TimeElapsed();
 
+	void BlackHoleAttack();
+
+	void BlackHoleAttack_TimeElapsed();
+
+	void TeleportAttack();
+
+	void TeleportAttack_TimeElapsed();
+
+	// 互动
 	void PrimaryInteract();
 
 public:	
