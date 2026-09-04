@@ -40,4 +40,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	FORCEINLINE float GetHealthMax() const { return HealthMax; }
+
+	UFUNCTION(BlueprintCallable)
+	bool IsFullHealth() const { return Health == HealthMax; }
 };

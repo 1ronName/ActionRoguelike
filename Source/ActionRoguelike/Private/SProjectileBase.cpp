@@ -7,6 +7,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Camera/CameraShakeBase.h"
 
 // Sets default values
 ASProjectileBase::ASProjectileBase()
@@ -26,9 +27,12 @@ ASProjectileBase::ASProjectileBase()
 	MovementComp->bRotationFollowsVelocity = true;
 	MovementComp->bInitialVelocityInLocalSpace = true;
 	MovementComp->ProjectileGravityScale = 0.0f;
-	MovementComp->InitialSpeed = 8000.f;
+	MovementComp->InitialSpeed = 4000.f;
 
 	DamageAmount = 20.0f;
+
+	ImpactShakeInnerRadius = 0.0f;
+	ImpactShakeOuterRadius = 1500.0f;
 }
 
 void ASProjectileBase::OnActorHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
@@ -40,6 +44,10 @@ void ASProjectileBase::Explode_Implementation()
 {
 	if (ensure(IsValid(this)))
 	{
+
+		//UGameplayStatics::PlayWorldCameraShake(this, ImpactShake, GetActorLocation(), ImpactShakeInnerRadius, ImpactShakeOuterRadius);
+		GetWorld()->GetFirstPlayerController()->PlayerCameraManager->StartCameraShake(ImpactShake, 1.0f);
+
 		UGameplayStatics::SpawnEmitterAtLocation(this, ImpactVFX, GetActorLocation(), GetActorRotation());
 		Destroy();
 	}

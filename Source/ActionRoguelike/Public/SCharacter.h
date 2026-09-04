@@ -19,6 +19,12 @@ class ACTIONROGUELIKE_API ASCharacter : public ACharacter
 
 protected:
 
+	UPROPERTY(VisibleAnywhere, Category = "Effects")
+	FName TimeToHitParamName;
+
+	UPROPERTY(VisibleAnywhere, Category = "Effects")
+	FName HandSocketName;
+
 	UPROPERTY(EditAnywhere, Category = "Attack")
 	TSubclassOf<AActor> MagicProjectileClass;
 
@@ -30,6 +36,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Attack")
 	UAnimMontage* AttackAnim;
+
+	UPROPERTY(EditAnywhere, Category = "Attack")
+	UParticleSystem* CastingEffect;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Attack")
+	float AttackAnimDelay;
 
 	// 三种弹幕发射共用一个计时器
 	FTimerHandle TimerHandle_PrimaryAttack;
@@ -78,6 +90,8 @@ protected:
 
 	// 互动
 	void PrimaryInteract();
+
+	void StartAttackEffects();
 
 	UFUNCTION()
 	void OnHealthChanged(AActor* InstigatorActor, USAttributeComponent* OwningComp, float NewHealth, float HealthMax, float Delta);

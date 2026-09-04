@@ -9,11 +9,11 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "SAttributeComponent.h"
 #include <Kismet/KismetMathLibrary.h>
+#include "Kismet/GameplayStatics.h"
 
-// Sets default values
+
 ASCharacter::ASCharacter()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>("SpringArmComp");
@@ -29,6 +29,10 @@ ASCharacter::ASCharacter()
 	InteractionComp = CreateDefaultSubobject<USInteractionComponent>("InteractionComp");
 
 	AttributeComp = CreateDefaultSubobject<USAttributeComponent>("AttributeComp");
+
+	AttackAnimDelay = 0.2f;
+	TimeToHitParamName = "TimeToHit";
+	HandSocketName = "Muzzle_01";
 }
 
 void ASCharacter::PostInitializeComponents()
@@ -101,7 +105,7 @@ void ASCharacter::SpawnProjectile(TSubclassOf<AActor>ClassToSpawn)
 {
 	if (ensureAlways(ClassToSpawn))
 	{
-		FVector HandLocation = GetMesh()->GetSocketLocation("Muzzle_01");
+		FVector HandLocation = GetMesh()->GetSocketLocation(HandSocketName);
 
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -142,9 +146,9 @@ void ASCharacter::SpawnProjectile(TSubclassOf<AActor>ClassToSpawn)
 
 void ASCharacter::PrimaryAttack()
 {
-	PlayAnimMontage(AttackAnim);
+	StartAttackEffects();
 
-	GetWorldTimerManager().SetTimer(TimerHandle_PrimaryAttack, this, &ASCharacter::PrimaryAttack_TimeElapsed, 0.2f);
+	GetWorldTimerManager().SetTimer(TimerHandle_PrimaryAttack, this, &ASCharacter::PrimaryAttack_TimeElapsed, AttackAnimDelay);
 
 	// GetWorldTimerManager().ClearTimer(TimerHandle_PrimaryAttack);
 }
@@ -156,9 +160,9 @@ void ASCharacter::PrimaryAttack_TimeElapsed()
 
 void ASCharacter::BlackHoleAttack()
 {
-	PlayAnimMontage(AttackAnim);
+	StartAttackEffects();
 
-	GetWorldTimerManager().SetTimer(TimerHandle_PrimaryAttack, this, &ASCharacter::BlackHoleAttack_TimeElapsed, 0.2f);
+	GetWorldTimerManager().SetTimer(TimerHandle_PrimaryAttack, this, &ASCharacter::BlackHoleAttack_TimeElapsed, AttackAnimDelay);
 }
 
 void ASCharacter::BlackHoleAttack_TimeElapsed()
@@ -168,9 +172,9 @@ void ASCharacter::BlackHoleAttack_TimeElapsed()
 
 void ASCharacter::TeleportAttack()
 {
-	PlayAnimMontage(AttackAnim);
+	StartAttackEffects();
 
-	GetWorldTimerManager().SetTimer(TimerHandle_PrimaryAttack, this, &ASCharacter::TeleportAttack_TimeElapsed, 0.2f);
+	GetWorldTimerManager().SetTimer(TimerHandle_PrimaryAttack, this, &ASCharacter::TeleportAttack_TimeElapsed, AttackAnimDelay);
 }
 
 void ASCharacter::TeleportAttack_TimeElapsed()
@@ -183,8 +187,7 @@ void ASCharacter::OnHealthChanged(AActor* InstigatorActor, USAttributeComponent*
 	
 	if (Delta < 0.0f)
 	{
-		// ÐÞ¸Ämaterial²ÎÊý
-		// MeshComp->SetScalarParameterValueOnMaterials("TimeToHit", GetWorld()->TimeSeconds);
+		 GetMesh()->SetScalarParameterValueOnMaterials(TimeToHitParamName, GetWorld()->TimeSeconds);
 	}
 
 	if (NewHealth <= 0.0f && Delta < 0.0f)
@@ -222,4 +225,10 @@ void ASCharacter::PrimaryInteract()
 		InteractionComp->PrimaryInteract();
 	}
 
+}
+
+void ASCharacter::StartAttackEffects()
+{
+	PlayAnimMontage(AttackAnim);
+	UGameplayStatics::SpawnEmitterAttached(CastingEffect, GetMesh(), HandSocketName, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::SnapToTarget);
 }

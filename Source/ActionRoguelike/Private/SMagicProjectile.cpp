@@ -26,7 +26,6 @@ void ASMagicProjectile::BeginPlay()
 	FlightSFXComp->Play();
 	SphereComp->OnComponentHit.AddDynamic(this, &ASMagicProjectile::OnComponentHit);
 
-	//UGameplayStatics::SpawnEmitterAttached(AttachedVFX)
 }
 
 void ASMagicProjectile::OnActorOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
