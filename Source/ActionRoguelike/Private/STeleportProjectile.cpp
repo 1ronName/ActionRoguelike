@@ -10,40 +10,42 @@
 
 ASTeleportProjectile::ASTeleportProjectile()
 {
+	TeleportDelay = 0.2f;
+	DetonateDelay = 0.2f;
+
+	MovementComp->InitialSpeed = 6000.0f;
 }
 
 void ASTeleportProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 
-	GetWorldTimerManager().SetTimer(TimerHandle_Explodes, this, &ASTeleportProjectile::Explodes_TimeElapsed, 0.2f);
-
-	SphereComp->OnComponentHit.AddDynamic(this, &ASTeleportProjectile::OnActorHit);
+	GetWorldTimerManager().SetTimer(TimerHandle_DelayedDetonate, this, &ASTeleportProjectile::Explode, DetonateDelay);
 }
 
-void ASTeleportProjectile::Tick(float DeltaTime)
+void ASTeleportProjectile::Explode_Implementation()
 {
-}
+	GetWorldTimerManager().ClearTimer(TimerHandle_DelayedDetonate);
+	
+	UGameplayStatics::SpawnEmitterAtLocation(this, ImpactVFX, GetActorLocation(), GetActorRotation());
 
-void ASTeleportProjectile::OnActorHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
-{
-	GetWorldTimerManager().ClearTimer(TimerHandle_Explodes);
-	Explodes_TimeElapsed();
-}
+	EffectComp->DeactivateSystem();
 
-void ASTeleportProjectile::Explodes_TimeElapsed()
-{
 	MovementComp->StopMovementImmediately();
-
-	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(),ExplodeEffect,GetActorLocation(),GetActorRotation(),true);
-	GetWorldTimerManager().SetTimer(TimerHandle_Teleport, this, &ASTeleportProjectile::Teleport_TimeElapsed, 0.2f);
-
+	SetActorEnableCollision(false);
+	
+	FTimerHandle TimerHandle_DelayedTeleport;
+	GetWorldTimerManager().SetTimer(TimerHandle_DelayedTeleport, this, &ASTeleportProjectile::TeleportInstigator, TeleportDelay);
 }
 
-void ASTeleportProjectile::Teleport_TimeElapsed()
+void ASTeleportProjectile::TeleportInstigator()
 {
-	AActor* MyActor = GetInstigator();
-	MyActor->SetActorLocation(GetActorLocation());
-
+	AActor* ActorToTeleport = GetInstigator();
+	if (ensure(ActorToTeleport))
+	{
+		//Keep instigator rotation or it may end up jarring
+		ActorToTeleport->TeleportTo(GetActorLocation(), ActorToTeleport->GetActorRotation(), false, false);
+	}
 	Destroy();
 }
+

@@ -10,6 +10,7 @@ class UCameraComponent;
 class USpringArmComponent;
 class USInteractionComponent;
 class UAnimMontage;
+class USAttributeComponent;
 
 UCLASS()
 class ACTIONROGUELIKE_API ASCharacter : public ACharacter
@@ -47,7 +48,10 @@ protected:
 	UPROPERTY(VisibleAnywhere)
 	USInteractionComponent* InteractionComp;
 
-	// Called when the game starts or when spawned
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USAttributeComponent* AttributeComp;
+
+
 	virtual void BeginPlay() override;
 
 	void MoveForward(float Value);
@@ -56,6 +60,8 @@ protected:
 
 	// Tool Function
 	FVector GetImpactLocation();
+
+	void SpawnProjectile(TSubclassOf<AActor>ClassToSpawn);
 
 	//∑¢…‰ projectile
 	void PrimaryAttack();
@@ -73,9 +79,12 @@ protected:
 	// ª•∂Ø
 	void PrimaryInteract();
 
+	UFUNCTION()
+	void OnHealthChanged(AActor* InstigatorActor, USAttributeComponent* OwningComp, float NewHealth, float HealthMax, float Delta);
+
+	virtual void PostInitializeComponents();
+
 public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;

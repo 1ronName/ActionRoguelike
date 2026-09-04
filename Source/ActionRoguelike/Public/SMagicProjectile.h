@@ -6,6 +6,8 @@
 #include "SProjectileBase.h"
 #include "SMagicProjectile.generated.h"
 
+
+
 UCLASS()
 class ACTIONROGUELIKE_API ASMagicProjectile : public ASProjectileBase
 {
@@ -16,12 +18,23 @@ public:
 	ASMagicProjectile();
 
 protected:
+	UPROPERTY(EditDefaultsOnly, Category = "Effects")
+	UAudioComponent* FlightSFXComp;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Effects")
+	USoundCue* ImpactSFX;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Effects")
+	UParticleSystem* AttachedVFX;
+
+	UFUNCTION()
+	void OnActorOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	virtual void Explode_Implementation() override;
 
+	UFUNCTION()
+	void OnComponentHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 };

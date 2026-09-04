@@ -18,26 +18,20 @@ public:
 	ASTeleportProjectile();
 
 protected:
+	UPROPERTY(EditDefaultsOnly, Category = "Teleport")
+	float TeleportDelay;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	UParticleSystem* ExplodeEffect;
+	UPROPERTY(EditDefaultsOnly, Category = "Teleport")
+	float DetonateDelay;
 
-	FTimerHandle TimerHandle_Explodes;
 
-	FTimerHandle TimerHandle_Teleport;
+	FTimerHandle TimerHandle_DelayedDetonate;
 
-	
+
+	virtual void Explode_Implementation() override;
+
+	void TeleportInstigator();
+
 	virtual void BeginPlay() override;
-
-	UFUNCTION()
-	void OnActorHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
-
-	void Explodes_TimeElapsed();
-
-	void Teleport_TimeElapsed();
-
-public:
-	
-	virtual void Tick(float DeltaTime) override;
 
 };

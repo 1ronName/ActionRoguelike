@@ -4,8 +4,10 @@
 #include "SCharacter.h"
 #include "SInteractionComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "GameFramework/Character.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "SAttributeComponent.h"
 #include <Kismet/KismetMathLibrary.h>
 
 // Sets default values
@@ -25,13 +27,22 @@ ASCharacter::ASCharacter()
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 
 	InteractionComp = CreateDefaultSubobject<USInteractionComponent>("InteractionComp");
+
+	AttributeComp = CreateDefaultSubobject<USAttributeComponent>("AttributeComp");
+}
+
+void ASCharacter::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	AttributeComp->OnHealthChanged.AddDynamic(this, &ASCharacter::OnHealthChanged);
 }
 
 // Called when the game starts or when spawned
 void ASCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 }
 
 void ASCharacter::MoveForward(float Value)
@@ -86,6 +97,49 @@ FVector ASCharacter::GetImpactLocation()
 	return ImpactLocation;
 }
 
+void ASCharacter::SpawnProjectile(TSubclassOf<AActor>ClassToSpawn)
+{
+	if (ensureAlways(ClassToSpawn))
+	{
+		FVector HandLocation = GetMesh()->GetSocketLocation("Muzzle_01");
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		SpawnParams.Instigator = this;
+
+		FCollisionShape Shape;
+		Shape.SetSphere(20.0f);
+
+		// Ignore Player
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(this);
+
+		FCollisionObjectQueryParams ObjParams;
+		ObjParams.AddObjectTypesToQuery(ECC_WorldDynamic);
+		ObjParams.AddObjectTypesToQuery(ECC_WorldStatic);
+		ObjParams.AddObjectTypesToQuery(ECC_Pawn);
+
+		FVector TraceStart = CameraComp->GetComponentLocation();
+
+		//endpoint far into the look-at distance （not too far, still adjust somewhat towards crosshair on a miss)
+		FVector TraceEnd = CameraComp->GetComponentLocation() + (GetControlRotation().Vector() * 5000);
+
+		FHitResult Hit;
+		//returns true if we got to a blocking hit
+		if(GetWorld()->SweepSingleByObjectType(Hit, TraceStart, TraceEnd, FQuat::Identity, ObjParams, Shape, Params))
+		{
+			//Overwrite traceend withimpact point in world
+			TraceEnd = Hit.ImpactPoint;
+		}
+		//find new direction/rotation from Hand pointing to impact point in world.
+		FRotator ProjRotation = FRotationMatrix::MakeFromX(TraceEnd - HandLocation).Rotator();
+
+		FTransform SpawnTM = FTransform(ProjRotation, HandLocation);
+		GetWorld()->SpawnActor<AActor>(ClassToSpawn, SpawnTM, SpawnParams);
+
+	}
+}
+
 void ASCharacter::PrimaryAttack()
 {
 	PlayAnimMontage(AttackAnim);
@@ -97,19 +151,7 @@ void ASCharacter::PrimaryAttack()
 
 void ASCharacter::PrimaryAttack_TimeElapsed()
 {
-	FVector HandLocation = GetMesh()->GetSocketLocation("Muzzle_01");
-
-	FVector ImpactLocation = GetImpactLocation();
-	// 得到目标 Rotation
-	FRotator AimRotation = UKismetMathLibrary::FindLookAtRotation(HandLocation, ImpactLocation);
-
-	FTransform SpawnTM = FTransform(AimRotation, HandLocation);
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParams.Instigator = this;
-
-	GetWorld()->SpawnActor<AActor>(MagicProjectileClass, SpawnTM, SpawnParams);
+	SpawnProjectile(MagicProjectileClass);
 }
 
 void ASCharacter::BlackHoleAttack()
@@ -121,19 +163,7 @@ void ASCharacter::BlackHoleAttack()
 
 void ASCharacter::BlackHoleAttack_TimeElapsed()
 {
-	FVector HandLocation = GetMesh()->GetSocketLocation("Muzzle_01");
-
-	FVector ImpactLocation = GetImpactLocation();
-	// 得到目标 Rotation
-	FRotator AimRotation = UKismetMathLibrary::FindLookAtRotation(HandLocation, ImpactLocation);
-
-	FTransform SpawnTM = FTransform(AimRotation, HandLocation);
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParams.Instigator = this;
-
-	GetWorld()->SpawnActor<AActor>(BlackHoleProjectileClass, SpawnTM, SpawnParams);
+	SpawnProjectile(BlackHoleProjectileClass);
 }
 
 void ASCharacter::TeleportAttack()
@@ -145,27 +175,23 @@ void ASCharacter::TeleportAttack()
 
 void ASCharacter::TeleportAttack_TimeElapsed()
 {
-	FVector HandLocation = GetMesh()->GetSocketLocation("Muzzle_01");
-
-	FVector ImpactLocation = GetImpactLocation();
-	// 得到目标 Rotation
-	FRotator AimRotation = UKismetMathLibrary::FindLookAtRotation(HandLocation, ImpactLocation);
-
-	FTransform SpawnTM = FTransform(AimRotation, HandLocation);
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParams.Instigator = this;
-
-	GetWorld()->SpawnActor<AActor>(TeleportProjectileClass, SpawnTM, SpawnParams);
+	SpawnProjectile(TeleportProjectileClass);
 }
 
-
-// Called every frame
-void ASCharacter::Tick(float DeltaTime)
+void ASCharacter::OnHealthChanged(AActor* InstigatorActor, USAttributeComponent* OwningComp, float NewHealth, float HealthMax, float Delta)
 {
-	Super::Tick(DeltaTime);
+	
+	if (Delta < 0.0f)
+	{
+		// 修改material参数
+		// MeshComp->SetScalarParameterValueOnMaterials("TimeToHit", GetWorld()->TimeSeconds);
+	}
 
+	if (NewHealth <= 0.0f && Delta < 0.0f)
+	{
+		APlayerController* PC = Cast<APlayerController>(GetController());
+		DisableInput(PC);
+	}
 }
 
 // Called to bind functionality to input
