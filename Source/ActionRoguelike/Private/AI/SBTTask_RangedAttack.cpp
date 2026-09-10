@@ -30,8 +30,14 @@ EBTNodeResult::Type USBTTask_RangedAttack::ExecuteTask(UBehaviorTreeComponent& O
 		FActorSpawnParameters Params;
 		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
+		if (ProjectileClass == nullptr)
+		{
+			UE_LOG(LogTemp, Error, TEXT("ProjectileClass 未设置！请在行为树任务的蓝图子类中指定投射物类"));
+			return EBTNodeResult::Failed;
+		}
 		AActor* NewProj = GetWorld()->SpawnActor<AActor>(ProjectileClass, MuzzleLocation, MuzzleRotation, Params);
-
+		//to fix: NewProj创建为空
+		
 		return NewProj ? EBTNodeResult::Succeeded : EBTNodeResult::Failed;
 	}
 
