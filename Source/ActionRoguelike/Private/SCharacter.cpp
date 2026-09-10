@@ -95,6 +95,7 @@ FVector ASCharacter::GetImpactLocation()
 	return ImpactLocation;
 }
 
+// Éú³ÉProjectile
 void ASCharacter::SpawnProjectile(TSubclassOf<AActor>ClassToSpawn)
 {
 	if (ensureAlways(ClassToSpawn))
