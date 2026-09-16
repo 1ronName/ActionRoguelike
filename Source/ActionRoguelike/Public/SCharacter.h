@@ -11,6 +11,7 @@ class USpringArmComponent;
 class USInteractionComponent;
 class UAnimMontage;
 class USAttributeComponent;
+class USActionComponent;
 
 UCLASS()
 class ACTIONROGUELIKE_API ASCharacter : public ACharacter
@@ -21,30 +22,6 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "Effects")
 	FName TimeToHitParamName;
-
-	UPROPERTY(VisibleAnywhere, Category = "Effects")
-	FName HandSocketName;
-
-	UPROPERTY(EditAnywhere, Category = "Attack")
-	TSubclassOf<AActor> MagicProjectileClass;
-
-	UPROPERTY(EditAnywhere, Category = "Attack")
-	TSubclassOf<AActor> BlackHoleProjectileClass;
-
-	UPROPERTY(EditAnywhere, Category = "Attack")
-	TSubclassOf<AActor> TeleportProjectileClass;
-
-	UPROPERTY(EditAnywhere, Category = "Attack")
-	UAnimMontage* AttackAnim;
-
-	UPROPERTY(EditAnywhere, Category = "Attack")
-	UParticleSystem* CastingEffect;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Attack")
-	float AttackAnimDelay;
-
-	// 三种弹幕发射共用一个计时器
-	FTimerHandle TimerHandle_PrimaryAttack;
 
 public:
 	// Sets default values for this character's properties
@@ -66,38 +43,36 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USAttributeComponent* AttributeComp;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USActionComponent* ActionComp;
 
 	void MoveForward(float Value);
 
 	void MoveRight(float Value);
 
+	void SprintStart();
+
+	void SprintStop();
+
 	// Tool Function
 	FVector GetImpactLocation();
 
-	void SpawnProjectile(TSubclassOf<AActor>ClassToSpawn);
-
 	//发射 projectile
 	void PrimaryAttack();
-	
-	void PrimaryAttack_TimeElapsed();
 
 	void BlackHoleAttack();
 
-	void BlackHoleAttack_TimeElapsed();
-
 	void TeleportAttack();
-
-	void TeleportAttack_TimeElapsed();
 
 	// 互动
 	void PrimaryInteract();
-
-	void StartAttackEffects();
 
 	UFUNCTION()
 	void OnHealthChanged(AActor* InstigatorActor, USAttributeComponent* OwningComp, float NewHealth, float HealthMax, float Delta);
 
 	virtual void PostInitializeComponents();
+
+	virtual FVector GetPawnViewLocation() const override;
 
 public:	
 
