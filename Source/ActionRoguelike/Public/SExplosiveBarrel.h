@@ -22,7 +22,7 @@ protected:
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* StaticMeshComp;
 
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(BlueprintReadOnly)
 	URadialForceComponent* RadialForceComp;
 
 	// Called when the game starts or when spawned

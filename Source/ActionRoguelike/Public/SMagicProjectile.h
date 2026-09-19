@@ -7,7 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "SMagicProjectile.generated.h"
 
-
+class USActionEffect;
 
 UCLASS()
 class ACTIONROGUELIKE_API ASMagicProjectile : public ASProjectileBase
@@ -28,6 +28,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Effects")
 	USoundCue* ImpactSFX;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Damage")
+	TSubclassOf<USActionEffect> BurningActionClass;
 
 	UFUNCTION()
 	void OnActorOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);

@@ -3,14 +3,13 @@
 
 #include "SHealthPotion.h"
 #include "SAttributeComponent.h"
+#include "SPlayerState.h"
 
 // Sets default values
 ASHealthPotion::ASHealthPotion()
 {
-	MeshComp = CreateDefaultSubobject<UStaticMeshComponent>("MeshComp");
-	//Disable collision,instead we use SphereComp to handle interaction queries
-	MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	MeshComp->SetupAttachment(RootComponent);
+
+	CreditCost = 50;
 }
 
 void ASHealthPotion::Interact_Implementation(APawn* InstigatorPawn)
@@ -25,9 +24,12 @@ void ASHealthPotion::Interact_Implementation(APawn* InstigatorPawn)
 	if(ensure(AttributeComp) && !AttributeComp->IsFullHealth())
 	{
 		//Only activate if healed successfully
-		if (AttributeComp->ApplyHealthChange(this, AttributeComp->GetHealthMax()))
+		if (ASPlayerState* PS = InstigatorPawn->GetPlayerState<ASPlayerState>())
 		{
-			HideAndCooldownPowerup();
+			if (PS->RemoveCredits(CreditCost) && AttributeComp->ApplyHealthChange(this, AttributeComp->GetHealthMax()))
+			{
+				HideAndCooldownPowerup();
+			}
 		}
 
 	}
