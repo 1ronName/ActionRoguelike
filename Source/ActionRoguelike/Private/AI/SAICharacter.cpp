@@ -26,7 +26,7 @@ ASAICharacter::ASAICharacter()
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
 	// Disabled on capsule to let projectiles pass through capsule and hit mesh instead
-	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Ignore);
+	// GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Ignore);
 	// Enabled on mesh to react to incoming projectiles
 	GetMesh()->SetGenerateOverlapEvents(true);
 
@@ -61,27 +61,6 @@ AActor* ASAICharacter::GetTargetActor() const
 	}
 
 	return nullptr;
-}
-
-
-void ASAICharacter::OnPawnSeen(APawn* Pawn)
-{
-	// Ignore if target already set
-	if (GetTargetActor() != Pawn)
-	{
-		SetTargetActor(Pawn);
-	
-		USWorldUserWidget* NewWidget = CreateWidget<USWorldUserWidget>(GetWorld(), SpottedWidgetClass);
-		if (NewWidget)
-		{
-			NewWidget->AttachedActor = this;
-			// Index of 10 (or anything higher than default of 0) places this on top of any other widget.
-			// May end up behind the minion health bar otherwise.
-			NewWidget->AddToViewport(10);
-		}
-	}
-
-	//DrawDebugString(GetWorld(), GetActorLocation(), "PLAYER SPOTTED", nullptr, FColor::White, 4.0f, true);
 }
 
 void ASAICharacter::OnHealthChanged(AActor* InstigatorActor, USAttributeComponent* OwningComp, float NewHealth, float Delta)
@@ -137,3 +116,29 @@ void ASAICharacter::OnHealthChanged(AActor* InstigatorActor, USAttributeComponen
 	}
 }
 
+
+void ASAICharacter::OnPawnSeen(APawn* Pawn)
+{
+	// Ignore if target already set
+	if (GetTargetActor() != Pawn)
+	{
+		SetTargetActor(Pawn);
+
+		MulticastPawnSeen();
+	}
+
+	//DrawDebugString(GetWorld(), GetActorLocation(), "PLAYER SPOTTED", nullptr, FColor::White, 4.0f, true);
+}
+
+
+void ASAICharacter::MulticastPawnSeen_Implementation()
+{
+	USWorldUserWidget* NewWidget = CreateWidget<USWorldUserWidget>(GetWorld(), SpottedWidgetClass);
+	if (NewWidget)
+	{
+		NewWidget->AttachedActor = this;
+		// Index of 10 (or anything higher than default of 0) places this on top of any other widget.
+		// May end up behind the minion health bar otherwise.
+		NewWidget->AddToViewport(10);
+	}
+}

@@ -4,6 +4,7 @@
 #include "SPowerupActor.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 ASPowerupActor::ASPowerupActor()
@@ -18,8 +19,11 @@ ASPowerupActor::ASPowerupActor()
 	MeshComp->SetupAttachment(RootComponent);
 
 	RespawnTime = 10.0f;
+	bIsActive = true;
 
-	SetReplicates(true);
+	//SetReplicates(true);
+	bReplicates = true;
+
 }
 
 void ASPowerupActor::ShowPowerup()
@@ -36,15 +40,32 @@ void ASPowerupActor::HideAndCooldownPowerup()
 
 void ASPowerupActor::SetPowerupState(bool bNewIsActive)
 {
-	SetActorEnableCollision(bNewIsActive);
+	bIsActive = bNewIsActive;
+	OnRep_IsActive();
+}
 
+void ASPowerupActor::OnRep_IsActive()
+{
+	SetActorEnableCollision(bIsActive);
 	//Set visibility onroot and all children
-	RootComponent->SetVisibility(bNewIsActive, true);
+	RootComponent->SetVisibility(bIsActive, true);
+}
+
+void ASPowerupActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ASPowerupActor, bIsActive);
 }
 
 void ASPowerupActor::Interact_Implementation(APawn* InstigatorPawn)
 {
 	// logic in derived classes...
+}
+
+FText ASPowerupActor::GetInteractText_Implementation(APawn* InstigatorPawn)
+{
+	return FText::GetEmpty();
 }
 
 

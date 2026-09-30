@@ -8,6 +8,7 @@
 #include "SMagicProjectile.generated.h"
 
 class USActionEffect;
+class USoundCue;
 
 UCLASS()
 class ACTIONROGUELIKE_API ASMagicProjectile : public ASProjectileBase

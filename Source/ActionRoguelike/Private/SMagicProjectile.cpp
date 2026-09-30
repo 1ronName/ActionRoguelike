@@ -20,6 +20,9 @@ ASMagicProjectile::ASMagicProjectile()
 	FlightSFXComp = CreateDefaultSubobject<UAudioComponent>("FlightSFX Comp");
 	FlightSFXComp->SetupAttachment(RootComponent);
 
+	InitialLifeSpan = 10.0f;
+
+	DamageAmount = 20.0f;
 }
 
 void ASMagicProjectile::BeginPlay()
@@ -56,7 +59,7 @@ void ASMagicProjectile::OnActorOverlap(UPrimitiveComponent* OverlappedComponent,
 	{
 		Explode();
 
-		if (ActionComp)
+		if (ActionComp && HasAuthority())
 		{
 			ActionComp->AddAction(GetInstigator(), BurningActionClass);
 		}

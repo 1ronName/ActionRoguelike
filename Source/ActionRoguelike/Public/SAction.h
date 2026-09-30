@@ -9,14 +9,33 @@
 
 class UWorld;
 class USActionComponent;
-/**
- * 
- */
+
+USTRUCT()
+struct FActionRepData
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY()
+	bool bIsRunning;
+
+	UPROPERTY()
+	AActor* Instigator;
+};
+
 UCLASS(Blueprintable)
 class ACTIONROGUELIKE_API USAction : public UObject
 {
 	GENERATED_BODY()
+
 protected:
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	TSoftObjectPtr<UTexture2D> Icon;
+
+	UPROPERTY(Replicated)
+	USActionComponent* ActionComp;
 
 	/*Tags added to owning actor when activated,removed when action stops */
 	UPROPERTY(EditDefaultsOnly, Category = "Tags")
@@ -29,15 +48,27 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Action")
 	USActionComponent* GetOwningComponent() const;
 
-	bool bIsRunning;
+	UPROPERTY(ReplicatedUsing = "OnRep_RepData")
+	FActionRepData RepData;
+	// bool isRunning;
+
+	UPROPERTY(Replicated)
+	float TimeStarted;
+
+	UFUNCTION()
+	void OnRep_RepData();
 
 public:
+	void Initialize(USActionComponent* NewActionComp);
+
 	/*Start immediately when added to an action component */
 	UPROPERTY(EditDefaultsOnly, Category = "Action")
 	bool bAutoStart;
 
 	UFUNCTION(BlueprintCallable, Category = "Action")
 	bool IsRunning() const;
+
+
 
 	UFUNCTION(BlueprintNativeEvent, Category = "Action")
 	bool CanStart(AActor* Instigator);
@@ -54,4 +85,8 @@ public:
 
 	UWorld* GetWorld() const override;
 
+	bool IsSupportedForNetworking() const override
+	{
+		return true;
+	}
 };

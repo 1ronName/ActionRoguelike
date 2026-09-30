@@ -19,7 +19,8 @@ ASItemChest::ASItemChest()
 
 	TargetPitch = 110;
 
-	SetReplicates(true);
+	// SetReplicates(true);
+	bReplicates = true;
 }
 
 
@@ -29,6 +30,11 @@ void ASItemChest::Interact_Implementation(APawn* InstigatorPawn)
 	bLidOpened = !bLidOpened;
 
 	OnRep_LidOpened(); // call for Server
+}
+
+void ASItemChest::OnActorLoaded_Implementation()
+{
+	OnRep_LidOpened();
 }
 
 void ASItemChest::OnRep_LidOpened()

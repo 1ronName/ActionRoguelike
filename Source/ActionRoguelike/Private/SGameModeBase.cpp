@@ -11,6 +11,15 @@
 #include "DrawDebugHelpers.h"
 #include "SCharacter.h"
 #include "SPlayerState.h"
+#include "SSaveGame.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/GameStateBase.h"
+#include "SGameplayInterface.h"
+#include "SMonsterData.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
+#include "../ActionRoguelike.h"
+#include "SActionComponent.h"
+#include "Engine/AssetManager.h"
 
 static TAutoConsoleVariable<bool> CVarSpawnBots(TEXT("su.SpawnBots"), true, TEXT("Enable spawning of bots via timer."), ECVF_Cheat);
 
@@ -25,6 +34,22 @@ ASGameModeBase::ASGameModeBase()
 	RequiredPowerupDistance = 2000;
 
 	PlayerStateClass = ASPlayerState::StaticClass();
+
+	SlotName = "SaveGame01";
+}
+
+void ASGameModeBase::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+	Super::InitGame(MapName, Options, ErrorMessage);
+
+	FString SelectedSaveSlot = UGameplayStatics::ParseOption(Options, "SaveGame");
+	if (SelectedSaveSlot.Len() > 0)
+	{
+		SlotName = SelectedSaveSlot;
+	}
+		
+
+	LoadSaveGame();
 }
 
 void ASGameModeBase::StartPlay()
@@ -46,6 +71,18 @@ void ASGameModeBase::StartPlay()
 			QueryInstance->GetOnQueryFinishedEvent().AddDynamic(this, &ASGameModeBase::OnPowerupSpawnQueryCompleted);
 		}
 	}
+}
+
+void ASGameModeBase::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)
+{
+	// 在Super::之前调用，这样可以在PlayerController的'beginplayingstate' (which is where we instantiate UI)调用前设置变量
+	ASPlayerState* PS = NewPlayer->GetPlayerState<ASPlayerState>();
+	if (ensure(PS))
+	{
+		PS->LoadPlayerState(CurrentSaveGame);
+	}
+		
+	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
 }
 
 void ASGameModeBase::SpawnBotTimerElapsed()
@@ -102,11 +139,88 @@ void ASGameModeBase::OnBotSpawnQueryCompleted(UEnvQueryInstanceBlueprintWrapper*
 	TArray<FVector> Locations = QueryInstance->GetResultsAsLocations();
 	if (Locations.IsValidIndex(0))
 	{
-		GetWorld()->SpawnActor<AActor>(MinionClass, Locations[0], FRotator::ZeroRotator);
+		TArray<FMonsterInfoRow*> Rows;
+		MonsterTable->GetAllRows("", Rows);
 
-		//Track all the used spawn locations
-		DrawDebugSphere(GetWorld(), Locations[0], 50.0f, 20, FColor::Blue, false, 60.0f);
+		//Get Random Enemy
+		int32 RandomIndex = FMath::RandRange(0, Rows.Num() - 1);
+		FMonsterInfoRow* SelectedRow = Rows[RandomIndex];
+
+		UAssetManager* Manager = UAssetManager::GetIfValid();
+		if (Manager)
+		{
+			LogOnScreen(this, "Loading monster...", FColor::Green);
+
+			TArray<FName> Bundles;
+			FStreamableDelegate Delegate = FStreamableDelegate::CreateUObject(this, &ASGameModeBase::OnMonsterLoaded, SelectedRow->MonsterId, Locations[0]);
+			Manager->LoadPrimaryAsset(SelectedRow->MonsterId, Bundles, Delegate);
+		}
+
 	}
+}
+
+void ASGameModeBase::OnMonsterLoaded(FPrimaryAssetId LoadedId, FVector SpawnLocation)
+{
+	LogOnScreen(this, "Finished loading.", FColor::Green);
+
+	UAssetManager* Manager = UAssetManager::GetIfInitialized();
+
+	// 检查这个 ID 是否被 AssetManager 认识
+	/*FPrimaryAssetType AssetType = LoadedId.PrimaryAssetType;
+	TArray<FPrimaryAssetId> AssetsOfType;
+	Manager->GetPrimaryAssetIdList(AssetType, AssetsOfType);
+	int num = AssetsOfType.Num();
+
+	for (const FPrimaryAssetId& Id : AssetsOfType)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("  - %s"), *Id.ToString());
+	}*/
+
+
+	if (Manager)
+	{
+		USMonsterData* MonsterData = Cast<USMonsterData>(Manager->GetPrimaryAssetObject(LoadedId));
+
+		/*UObject* LoadedObj = Manager->GetPrimaryAssetObject(LoadedId);
+		if (!LoadedObj)
+		{
+			UE_LOG(LogTemp, Error, TEXT("GetPrimaryAssetObject 返回空，LoadedId: %s"), *LoadedId.ToString());
+			return;
+		}
+
+		USMonsterData* MonsterData = Cast<USMonsterData>(LoadedObj);
+		if (!MonsterData)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Cast 失败，实际类型: %s，LoadedId: %s"),
+				*LoadedObj->GetClass()->GetName(), *LoadedId.ToString());
+			return;
+		}*/
+
+		if (MonsterData)
+		{
+			AActor* NewBot = GetWorld()->SpawnActor<AActor>(MonsterData->MonsterClass, SpawnLocation, FRotator::ZeroRotator);
+
+			if (NewBot)
+			{
+				LogOnScreen(this, FString::Printf(TEXT("Spawned enemy:%s (%s)"), *GetNameSafe(NewBot), *GetNameSafe(MonsterData)));
+
+				// Grant special actions,buffs etc.
+				USActionComponent* ActionComp = Cast<USActionComponent>(NewBot->GetComponentByClass(USActionComponent::StaticClass()));
+				if (ActionComp)
+				{
+					for (TSubclassOf<USAction> ActionClass : MonsterData->Actions)
+					{
+						ActionComp->AddAction(NewBot, ActionClass);
+					}
+
+				}
+
+			}
+		}
+	}
+		
+
+	
 }
 
 void ASGameModeBase::OnPowerupSpawnQueryCompleted(UEnvQueryInstanceBlueprintWrapper* QueryInstance, EEnvQueryStatus::Type QueryStatus)
@@ -145,8 +259,8 @@ void ASGameModeBase::OnPowerupSpawnQueryCompleted(UEnvQueryInstanceBlueprintWrap
 				//DrawDebugSphere(GetWorld(), PickedLocation, 50.0f, 20, FColor::Red, false, 10.0f);
 
 				// too close, skip to next attempt
-				bValidLocation = false;
-				break;
+bValidLocation = false;
+break;
 			}
 		}
 
@@ -177,7 +291,7 @@ void ASGameModeBase::RespawnPlayerElapsed(AController* Controller)
 
 		RestartPlayer(Controller);
 	}
-		
+
 }
 
 void ASGameModeBase::KillAll()
@@ -195,6 +309,7 @@ void ASGameModeBase::KillAll()
 	}
 }
 
+
 void ASGameModeBase::OnActorKilled(AActor* VictimActor, AActor* Killer)
 {
 	UE_LOG(LogTemp, Log, TEXT("OnActorKilled: Victim: %s, Killer: %s"), *GetNameSafe(VictimActor), *GetNameSafe(Killer));
@@ -210,15 +325,122 @@ void ASGameModeBase::OnActorKilled(AActor* VictimActor, AActor* Killer)
 		float RespawnDelay = 2.0f;
 		GetWorldTimerManager().SetTimer(TimerHandle_RespawnDelay, Delegate, RespawnDelay, false);
 	}
-	
+
 	// Give Credits for kill
 	APawn* KillerPawn = Cast<APawn>(Killer);
-	if (KillerPawn)
+	// 自杀不给Credits
+	if (KillerPawn && KillerPawn != VictimActor)
 	{
+		// bot 上只会取到nullptr
 		ASPlayerState* PS = KillerPawn->GetPlayerState<ASPlayerState>();
 		if (PS)
 		{
 			PS->AddCredits(CreditsPerKill);
 		}
 	}
+}
+
+
+void ASGameModeBase::WriteSaveGame()
+{
+	// 迭代所有玩家状态。虽然目前没有ID用于匹配
+	for (int32 i = 0;i < GameState->PlayerArray.Num();i++)
+	{
+		ASPlayerState* PS = Cast<ASPlayerState>(GameState->PlayerArray[i]);
+		if (PS)
+		{
+			PS->SavePlayerState(CurrentSaveGame);
+			break; // 目前只有一个玩家
+		}
+
+	}
+
+	CurrentSaveGame->SavedActors.Empty();
+
+	//Iterate the entire world of actors
+	for (FActorIterator It(GetWorld()); It; ++It)
+	{
+		AActor* Actor = *It;
+		//Only interested in our'gameplay actors
+		if (!Actor->Implements<USGameplayInterface>())
+		{
+			continue;
+		}
+
+		FActorSaveData ActorData;
+		ActorData.ActorName = Actor->GetName();
+		ActorData.Transform = Actor->GetActorTransform();
+
+		//Pass the array to fill with data fromActor
+		FMemoryWriter MemWriter(ActorData.ByteData);
+
+		FObjectAndNameAsStringProxyArchive Ar(MemWriter, true);
+		//Find only variables with UPROPERTY(SaveGame)
+		Ar.ArIsSaveGame = true;
+		// Converts Actor's SaveGame UPROPERTIES into binary array
+		Actor->Serialize(Ar);
+
+		CurrentSaveGame->SavedActors.Add(ActorData);
+
+	}
+
+
+	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SlotName, 0);
+}
+
+void ASGameModeBase::LoadSaveGame()
+{
+	if (UGameplayStatics::DoesSaveGameExist(SlotName, 0))
+	{
+		CurrentSaveGame = Cast<USSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, 0));
+		if (CurrentSaveGame == nullptr)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Failed to load SaveGame Data."));
+			return;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("Loaded SaveGame Data."));
+
+		// Iterate the entire world of actors
+		for(FActorIterator It(GetWorld());It;++It)
+		{
+			AActor* Actor = *It;
+
+			// UE_LOG(LogTemp, Warning, TEXT("Try to load: %s"), *Actor->GetName());
+
+			//Only interested in our'gameplay actors
+			if (!Actor->Implements<USGameplayInterface>())
+			{
+				continue;
+			}
+
+			for (FActorSaveData ActorData : CurrentSaveGame->SavedActors)
+			{
+				if (ActorData.ActorName == Actor->GetName())
+				{
+					Actor->SetActorTransform(ActorData.Transform);
+
+					FMemoryReader MemReader(ActorData.ByteData);
+
+					FObjectAndNameAsStringProxyArchive Ar(MemReader, true);
+					//Find only variables with UPROPERTY(SaveGame)
+					Ar.ArIsSaveGame = true;
+					// 二进制array转换回 actor 的变量
+					Actor->Serialize(Ar);
+
+					ISGameplayInterface::Execute_OnActorLoaded(Actor);
+
+					break;
+				}
+			}
+		}
+		
+	}
+	else
+	{
+		CurrentSaveGame = Cast<USSaveGame>(UGameplayStatics::CreateSaveGameObject(USSaveGame::StaticClass()));
+
+		UE_LOG(LogTemp, Log, TEXT("Created New SaveGame Data."));
+	}
+		
 }
